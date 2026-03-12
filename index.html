@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار نظام رصد السقوط - Wrtgo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f4f7f6; margin: 0; padding: 20px; transition: 0.3s; }
+        .setup-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
+        #status-box { font-size: 1.2rem; font-weight: bold; margin: 20px 0; color: #2c3e50; }
+        #live-counter { font-size: 2.5rem; color: #007bff; font-family: monospace; margin: 15px 0; border: 2px solid #007bff; display: inline-block; padding: 10px 20px; border-radius: 10px; }
+        .btn-activate { background: #28a745; color: white; border: none; padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 10px rgba(40,167,69,0.3); }
+        .emergency-mode { background: #e74c3c !important; color: white !important; }
+        .info-text { font-size: 0.9rem; color: #7f8c8d; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="setup-card">
+        <h2>مختبر رصد السقوط 🧪</h2>
+        <p>إذا كان الرقم أدناه لا يتغير، فالمتصفح يحجب الحساس.</p>
+        
+        <div id="live-counter">0.00</div>
+        
+        <div id="status-box">الحالة: بانتظار التفعيل</div>
+
+        <button id="startBtn" class="btn-activate" onclick="requestAccess()">تفعيل الحساس الآن</button>
+
+        <div class="info-text">
+            * ملاحظة: يجب فتح الرابط عبر <b>HTTPS</b> ليعمل الحساس في الأجهزة الحديثة.
+        </div>
+    </div>
+
+    <script>
+        let isDetected = false;
+        let timer;
+        const THRESHOLD = 15; // شديد الحساسية للاختبار
+
+        async function requestAccess() {
+            // طلب الإذن لأجهزة آيفون iOS
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission === 'granted') {
+                        startLogic();
+                    } else {
+                        document.getElementById('status-box').innerText = "تم رفض الإذن ❌";
+                    }
+                } catch (e) {
+                    document.getElementById('status-box').innerText = "خطأ في طلب الإذن";
+                }
+            } else {
+                // أجهزة أندرويد لا تطلب إذنًا صريحًا غالبًا ولكن تحتاج HTTPS
+                startLogic();
+            }
+        }
+
+        function startLogic() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('status-box').innerText = "جاري الرصد... هز الجوال!";
+            
+            window.addEventListener('devicemotion', (event) => {
+                let acc = event.accelerationIncludingGravity;
+                if (!acc || acc.x === null) {
+                    document.getElementById('status-box').innerText = "الحساس متوفر ولكن لا يعطي بيانات (تأكد من HTTPS)";
+                    return;
+                }
+
+                let total = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+                
+                // تحديث العداد على الشاشة
+                document.getElementById('live-counter').innerText = total.toFixed(2);
+
+                if (isDetected) return;
+
+                // رصد الارتطام
+                if (total > THRESHOLD) {
+                    isDetected = true;
+                    document.getElementById('status-box').innerText = "تم رصد حركة قوية! انتظر 10 ثوانٍ...";
+                    document.body.style.background = "#f1c40f"; // لون أصفر (فحص السكون)
+                    
+                    startInactivityCheck();
+                }
+            });
+        }
+
+        function startInactivityCheck() {
+            timer = setTimeout(() => {
+                // تفعيل الإنذار النهائي
+                document.body.classList.add('emergency-mode');
+                document.getElementById('status-box').innerText = "🚨 إنذار: سقوط مؤكد!";
+                playSiren();
+            }, 10000);
+
+            // إذا تحرك الجوال خلال الـ 10 ثوانٍ، نلغي الإنذار
+            const canceler = (e) => {
+                let a = e.acceleration;
+                if (Math.abs(a.x) > 2 || Math.abs(a.y) > 2) {
+                    clearTimeout(timer);
+                    isDetected = false;
+                    document.body.style.background = "#f4f7f6";
+                    document.getElementById('status-box').innerText = "تم رصد حركة.. تم إلغاء الإنذار ✅";
+                    window.removeEventListener('devicemotion', canceler);
+                }
+            };
+            window.addEventListener('devicemotion', canceler);
+        }
+
+        function playSiren() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+
+            // صوت متقطع
+            setInterval(() => {
+                gain.gain.value = gain.gain.value === 0 ? 1 : 0;
+            }, 100);
+        }
+    </script>
+</body>
+</html>
