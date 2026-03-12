@@ -3,74 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام السلامة للسقوط - Wrtgo</title>
+    <title>نظام السلامة للسقوط - نسخة مستقرة</title>
     <style>
         :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; --warning: #ffc107; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: var(--main-bg); transition: 0.3s; margin: 0; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; border: 1px solid #eee; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); transition: 0.3s; margin: 0; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
         #status { font-size: 1.4rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
-        
         .monitor-box { display: flex; justify-content: space-around; margin: 20px 0; gap: 10px; }
         .data-point { flex: 1; background: #e7f3ff; padding: 15px; border-radius: 12px; }
-        .label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 5px; }
         .value { font-size: 1.5rem; font-weight: bold; color: #007bff; font-family: monospace; }
-        
-        #max-impact { color: #fd7e14; border: 2px dashed #fd7e14; background: #fff4e6; }
-        
-        #countdown-box { display: none; font-size: 3rem; color: var(--danger); font-weight: bold; margin: 10px 0; }
-        
-        .btn-start { padding: 18px 45px; font-size: 1.2rem; cursor: pointer; background: var(--accent); color: white; border: none; border-radius: 50px; width: 100%; transition: 0.3s; }
-        .emergency { background: var(--danger) !important; color: white !important; }
+        #countdown-box { display: none; font-size: 4rem; color: var(--danger); font-weight: bold; margin: 10px 0; }
+        .btn-start { padding: 18px 45px; font-size: 1.2rem; cursor: pointer; background: var(--accent); color: white; border: none; border-radius: 50px; width: 100%; }
         .waiting { background: var(--warning) !important; }
-        #location-url { margin-top: 20px; padding: 10px; background: #fff; border-radius: 10px; display: none; }
-        a { color: #dc3545; font-weight: bold; }
+        .emergency { background: var(--danger) !important; color: white !important; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h2>🛡️ نظام السلامة للسقوط</h2>
-        <hr>
-
-        <div id="status">النظام بانتظار التفعيل</div>
+        <div id="status">جاهز للرصد</div>
         <div id="countdown-box">5</div>
 
         <div class="monitor-box">
-            <div class="data-point">
-                <span class="label">الحركة الحالية</span>
-                <div id="live-val" class="value">0.00</div>
-            </div>
-            <div id="max-impact" class="data-point">
-                <span class="label">أقوى ارتطام</span>
-                <div id="max-val" class="value">0.00</div>
-            </div>
+            <div class="data-point"><span style="font-size: 0.8rem;">الحركة الحالية</span><div id="live-val" class="value">0.00</div></div>
+            <div class="data-point" style="background: #fff4e6; border: 1px dashed #fd7e14;"><span style="font-size: 0.8rem;">أقوى ارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
         </div>
 
         <button id="mainBtn" class="btn-start" onclick="initSystem()">تشغيل الرصد الآن</button>
-
-        <div id="location-url"></div>
     </div>
 
     <script>
         let isFallDetected = false;
-        let inactivityTimer;
+        let canCancel = false; // متغير جديد للتحكم في وقت الإلغاء
         let maxImpact = 0;
-        let countdownInterval;
+        let countdownValue = 5;
 
-        // --- الإعدادات المطلوبة ---
-        const IMPACT_THRESHOLD = 12;    
-        const WAIT_TIME = 5000;         
-        // --------------------------
+        const IMPACT_THRESHOLD = 12;
+        const WAIT_TIME = 5000;
 
         function initSystem() {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(state => {
-                    if (state === 'granted') startMonitoring();
-                    else alert("يجب السماح بالوصول للحساسات ليعمل النظام.");
-                }).catch(console.error);
-            } else {
-                startMonitoring();
-            }
+                DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') startMonitoring(); });
+            } else { startMonitoring(); }
         }
 
         function startMonitoring() {
@@ -91,79 +66,60 @@
                 document.getElementById('max-val').innerText = maxImpact.toFixed(2);
             }
 
-            // إذا تم رصد الارتطام ولم نبدأ العد التنازلي بعد
+            // رصد الارتطام
             if (!isFallDetected && totalAcc > IMPACT_THRESHOLD) {
                 isFallDetected = true;
-                startFallSequence();
+                triggerWaitingSequence();
+            }
+
+            // منطق الإلغاء: لا يعمل إلا بعد مرور ثانيتين من الارتطام (لضمان استقرار الجهاز)
+            if (isFallDetected && canCancel) {
+                let move = event.acceleration;
+                if (Math.abs(move.x) > 3 || Math.abs(move.y) > 3 || Math.abs(move.z) > 3) {
+                    resetSystem();
+                }
             }
         }
 
-        function startFallSequence() {
-            document.getElementById('status').innerText = "⚠️ تم رصد ارتطام! سكون مطلوب...";
+        function triggerWaitingSequence() {
             document.body.className = "waiting";
+            document.getElementById('status').innerText = "⚠️ تم رصد ارتطام! جاري الفحص...";
             document.getElementById('countdown-box').style.display = "block";
             
-            let secondsLeft = 5;
-            document.getElementById('countdown-box').innerText = secondsLeft;
+            // قفل خاصية الإلغاء لمدة ثانية ونصف (تجاهل الارتدادات)
+            canCancel = false;
+            setTimeout(() => { canCancel = true; }, 1500);
 
-            // تحديث رقم العد التنازلي على الشاشة
-            countdownInterval = setInterval(() => {
-                secondsLeft--;
-                document.getElementById('countdown-box').innerText = secondsLeft;
-                if (secondsLeft <= 0) clearInterval(countdownInterval);
-            }, 1000);
-
-            // بدء مؤقت السكون
-            inactivityTimer = setTimeout(() => {
-                triggerAlert();
-            }, WAIT_TIME);
-
-            // مراقبة الحركة للإلغاء
-            const cancelOnMotion = (e) => {
-                let a = e.acceleration;
-                // إذا تحرك الجوال بقوة أكبر من 3 نلغي كل شيء
-                if (Math.abs(a.x) > 3 || Math.abs(a.y) > 3 || Math.abs(a.z) > 3) {
-                    clearTimeout(inactivityTimer);
-                    clearInterval(countdownInterval);
-                    isFallDetected = false;
-                    document.getElementById('status').innerText = "جاري الرصد... ✅";
-                    document.body.className = "";
-                    document.getElementById('countdown-box').style.display = "none";
-                    window.removeEventListener('devicemotion', cancelOnMotion);
+            countdownValue = 5;
+            let timer = setInterval(() => {
+                countdownValue--;
+                document.getElementById('countdown-box').innerText = countdownValue;
+                if (countdownValue <= 0) {
+                    clearInterval(timer);
+                    if (isFallDetected) finalEmergency();
                 }
-            };
-            window.addEventListener('devicemotion', cancelOnMotion);
+            }, 1000);
         }
 
-        function triggerAlert() {
-            clearInterval(countdownInterval);
+        function resetSystem() {
+            isFallDetected = false;
+            canCancel = false;
+            document.body.className = "";
+            document.getElementById('status').innerText = "جاري الرصد... ✅";
             document.getElementById('countdown-box').style.display = "none";
+            document.getElementById('countdown-box').innerText = "5";
+        }
+
+        function finalEmergency() {
             document.body.className = "emergency";
-            document.getElementById('status').innerText = "🚨 حالة طارئة: تم تأكيد السقوط!";
-            playAlarm();
-            getGeoLocation();
-        }
-
-        function getGeoLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const url = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                    document.getElementById('location-url').style.display = 'block';
-                    document.getElementById('location-url').innerHTML = `<a href="${url}" target="_blank" style="color:white">فتح موقع المصاب على الخريطة 📍</a>`;
-                });
-            }
-        }
-
-        function playAlarm() {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            document.getElementById('status').innerText = "🚨 حالة طارئة: سقوط مؤكد!";
+            document.getElementById('countdown-box').style.display = "none";
+            // تشغيل الصوت
+            const ctx = new AudioContext();
             const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(1000, ctx.currentTime);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
+            osc.connect(ctx.destination);
             osc.start();
-            setInterval(() => { gain.gain.value = gain.gain.value === 0 ? 1 : 0; }, 100);
         }
     </script>
 </body>
