@@ -3,37 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام حماية كبار السن - Wrtgo</title>
+    <title>نظام السلامة للسقوط - Wrtgo</title>
     <style>
-        :root { --main-bg: #f0f2f5; --accent: #28a745; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: var(--main-bg); transition: background 0.3s; margin: 0; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        #status { font-size: 1.3rem; margin: 20px 0; font-weight: bold; color: #333; }
-        #live-data { font-size: 1rem; color: #007bff; background: #e7f3ff; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: none; }
-        .btn-start { padding: 15px 40px; font-size: 1.2rem; cursor: pointer; background: var(--accent); color: white; border: none; border-radius: 50px; transition: 0.3s; }
-        .emergency { background: #ff4d4d !important; color: white !important; }
-        #location-url { margin-top: 15px; font-weight: bold; }
-        a { color: #ff4d4d; text-decoration: none; border-bottom: 2px solid; }
+        :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: var(--main-bg); transition: 0.3s; margin: 0; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; border: 1px solid #eee; }
+        #status { font-size: 1.4rem; margin: 15px 0; font-weight: bold; color: #2c3e50; }
+        
+        .monitor-box { display: flex; justify-content: space-around; margin: 20px 0; gap: 10px; }
+        .data-point { flex: 1; background: #e7f3ff; padding: 15px; border-radius: 12px; }
+        .label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 5px; }
+        .value { font-size: 1.5rem; font-weight: bold; color: #007bff; font-family: monospace; }
+        
+        #max-impact { color: #fd7e14; border: 2px dashed #fd7e14; background: #fff4e6; }
+        
+        .btn-start { padding: 18px 45px; font-size: 1.2rem; cursor: pointer; background: var(--accent); color: white; border: none; border-radius: 50px; width: 100%; transition: 0.3s; }
+        .emergency { background: var(--danger) !important; color: white !important; }
+        #location-url { margin-top: 20px; padding: 10px; background: #fff; border-radius: 10px; display: none; }
+        a { color: #dc3545; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>نظام رصد السقوط 🚨</h2>
-        <div id="status">بانتظار التفعيل...</div>
-        <div id="live-data">قوة الحركة: 0.00</div>
-        <button id="mainBtn" class="btn-start" onclick="initSystem()">تفعيل الرصد</button>
+        <h2>🛡️ نظام السلامة للسقوط</h2>
+        <p style="color: #666; font-size: 0.9rem;">مشروع حقيبة الخدمة الذكية (Wrtgo)</p>
+        <hr>
+
+        <div id="status">النظام بانتظار التفعيل</div>
+
+        <div class="monitor-box">
+            <div class="data-point">
+                <span class="label">الحركة الحالية</span>
+                <div id="live-val" class="value">0.00</div>
+            </div>
+            <div id="max-impact" class="data-point">
+                <span class="label">أقوى ارتطام</span>
+                <div id="max-val" class="value">0.00</div>
+            </div>
+        </div>
+
+        <button id="mainBtn" class="btn-start" onclick="initSystem()">تشغيل الرصد الآن</button>
+
         <div id="location-url"></div>
     </div>
 
     <script>
         let isFallDetected = false;
         let inactivityTimer;
+        let maxImpact = 0;
 
-        // --- إعدادات التحكم (تستطيع تغييرها من هنا بسهولة) ---
-        const IMPACT_THRESHOLD = 5;    // قوة الارتطام المطلوبة
-        const INACTIVITY_TIME = 5000;   // وقت الانتظار (5000 ملي ثانية = 5 ثواني) 👈 غير هذا الرقم
-        // --------------------------------------------------
+        // --- الإعدادات المطلوبة ---
+        const IMPACT_THRESHOLD = 12;    // قوة الارتطام (حساسية عالية جداً)
+        const WAIT_TIME = 5000;         // وقت الانتظار (5 ثواني)
+        // --------------------------
 
         function initSystem() {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -47,8 +70,7 @@
 
         function startMonitoring() {
             document.getElementById('mainBtn').style.display = 'none';
-            document.getElementById('live-data').style.display = 'block';
-            document.getElementById('status').innerText = "جاري الرصد... ✅";
+            document.getElementById('status').innerText = "جاري الرصد بنجاح ✅";
             window.addEventListener('devicemotion', handleMotion);
         }
 
@@ -56,14 +78,22 @@
             let acc = event.accelerationIncludingGravity;
             if (!acc || acc.x === null) return;
 
+            // حساب القوة الحالية
             let totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-            document.getElementById('live-data').innerText = "قوة الحركة الحالية: " + totalAcc.toFixed(2);
+            document.getElementById('live-val').innerText = totalAcc.toFixed(2);
+
+            // تحديث أقوى ارتطام تم تسجيله منذ التشغيل
+            if (totalAcc > maxImpact) {
+                maxImpact = totalAcc;
+                document.getElementById('max-val').innerText = maxImpact.toFixed(2);
+            }
 
             if (isFallDetected) return;
 
+            // اكتشاف الارتطام بناءً على القوة 12
             if (totalAcc > IMPACT_THRESHOLD) {
                 isFallDetected = true;
-                document.getElementById('status').innerText = "⚠️ ارتطام! انتظر " + (INACTIVITY_TIME/1000) + " ثوانٍ...";
+                document.getElementById('status').innerText = "⚠️ تم رصد ارتطام! انتظر 5 ثوانٍ...";
                 document.body.style.background = "#fff3cd"; 
                 checkInactivity();
             }
@@ -72,15 +102,16 @@
         function checkInactivity() {
             inactivityTimer = setTimeout(() => {
                 triggerAlert();
-            }, INACTIVITY_TIME);
+            }, WAIT_TIME);
 
             const cancelOnMotion = (e) => {
                 let a = e.acceleration;
-                if (Math.abs(a.x) > 2 || Math.abs(a.y) > 2) {
+                // إذا تحرك الشخص حركة ملحوظة (قوة أكبر من 2) يلغى الإنذار
+                if (Math.abs(a.x) > 2 || Math.abs(a.y) > 2 || Math.abs(a.z) > 2) {
                     clearTimeout(inactivityTimer);
                     isFallDetected = false;
-                    document.getElementById('status').innerText = "جاري الرصد... ✅";
-                    document.body.style.background = "#f0f2f5";
+                    document.getElementById('status').innerText = "جاري الرصد بنجاح ✅";
+                    document.body.style.background = "#f8f9fa";
                     window.removeEventListener('devicemotion', cancelOnMotion);
                 }
             };
@@ -89,7 +120,7 @@
 
         function triggerAlert() {
             document.body.classList.add('emergency');
-            document.getElementById('status').innerText = "🚨 حالة طارئة: تم رصد سقوط!";
+            document.getElementById('status').innerText = "🚨 حالة طارئة: تم تأكيد السقوط!";
             playAlarm();
             getGeoLocation();
         }
@@ -97,8 +128,11 @@
         function getGeoLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
-                    const url = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                    document.getElementById('location-url').innerHTML = `<a href="${url}" target="_blank" style="color:white">رابط موقع المصاب</a>`;
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const url = `https://www.google.com/maps?q=${lat},${lon}`;
+                    document.getElementById('location-url').style.display = 'block';
+                    document.getElementById('location-url').innerHTML = `<a href="${url}" target="_blank" style="color:white">فتح موقع المصاب على الخريطة 📍</a>`;
                 });
             }
         }
@@ -108,14 +142,12 @@
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.setValueAtTime(1000, ctx.currentTime);
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
-            setInterval(() => { gain.gain.value = gain.gain.value === 0 ? 1 : 0; }, 150);
+            setInterval(() => { gain.gain.value = gain.gain.value === 0 ? 1 : 0; }, 100);
         }
     </script>
 </body>
 </html>
-
-
