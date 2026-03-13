@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام السلامة للسقوط - نسخة مستقرة</title>
+    <title>نظام السلامة المطور - تليجرام و GPS</title>
     <style>
         :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; --warning: #ffc107; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); transition: 0.3s; margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        #status { font-size: 1.4rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
+        #status { font-size: 1.2rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
         .monitor-box { display: flex; justify-content: space-around; margin: 20px 0; gap: 10px; }
         .data-point { flex: 1; background: #e7f3ff; padding: 15px; border-radius: 12px; }
         .value { font-size: 1.5rem; font-weight: bold; color: #007bff; font-family: monospace; }
@@ -21,28 +21,34 @@
 <body>
 
     <div class="card">
-        <h2>🛡️ نظام السلامة للسقوط</h2>
-        <div id="status">جاهز للرصد</div>
+        <h2>🛡️ نظام السلامة المطور</h2>
+        <div id="status">جاهز للرصد (تأكد من تفعيل الموقع)</div>
         <div id="countdown-box">5</div>
 
         <div class="monitor-box">
-            <div class="data-point"><span style="font-size: 0.8rem;">الحركة الحالية</span><div id="live-val" class="value">0.00</div></div>
-            <div class="data-point" style="background: #fff4e6; border: 1px dashed #fd7e14;"><span style="font-size: 0.8rem;">أقوى ارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
+            <div class="data-point"><span style="font-size: 0.8rem;">الحركة</span><div id="live-val" class="value">0.00</div></div>
+            <div class="data-point" style="background: #fff4e6; border: 1px dashed #fd7e14;"><span style="font-size: 0.8rem;">الارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
         </div>
 
-        <button id="mainBtn" class="btn-start" onclick="initSystem()">تشغيل الرصد الآن</button>
+        <button id="mainBtn" class="btn-start" onclick="initSystem()">بدء الحماية الآن</button>
     </div>
 
     <script>
+        const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
+        const CHAT_ID = "1400827294";
+        
         let isFallDetected = false;
-        let canCancel = false; // متغير جديد للتحكم في وقت الإلغاء
+        let canCancel = false;
         let maxImpact = 0;
         let countdownValue = 5;
+        let timer;
 
         const IMPACT_THRESHOLD = 22;
-        const WAIT_TIME = 5000;
 
         function initSystem() {
+            // طلب إذن الموقع الجغرافي مسبقاً
+            navigator.geolocation.getCurrentPosition(() => {}, (err) => alert("يرجى تفعيل الموقع لضمان عمل نظام الطوارئ"));
+            
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') startMonitoring(); });
             } else { startMonitoring(); }
@@ -50,7 +56,7 @@
 
         function startMonitoring() {
             document.getElementById('mainBtn').style.display = 'none';
-            document.getElementById('status').innerText = "جاري الرصد... ✅";
+            document.getElementById('status').innerText = "نظام الحماية نشط... ✅";
             window.addEventListener('devicemotion', handleMotion);
         }
 
@@ -66,13 +72,11 @@
                 document.getElementById('max-val').innerText = maxImpact.toFixed(2);
             }
 
-            // رصد الارتطام
             if (!isFallDetected && totalAcc > IMPACT_THRESHOLD) {
                 isFallDetected = true;
                 triggerWaitingSequence();
             }
 
-            // منطق الإلغاء: لا يعمل إلا بعد مرور ثانيتين من الارتطام (لضمان استقرار الجهاز)
             if (isFallDetected && canCancel) {
                 let move = event.acceleration;
                 if (Math.abs(move.x) > 3 || Math.abs(move.y) > 3 || Math.abs(move.z) > 3) {
@@ -83,15 +87,16 @@
 
         function triggerWaitingSequence() {
             document.body.className = "waiting";
-            document.getElementById('status').innerText = "⚠️ تم رصد ارتطام! جاري الفحص...";
+            document.getElementById('status').innerText = "⚠️ تم رصد سقوط! حرك الهاتف لإلغاء الإنذار...";
             document.getElementById('countdown-box').style.display = "block";
             
-            // قفل خاصية الإلغاء لمدة ثانية ونصف (تجاهل الارتدادات)
             canCancel = false;
             setTimeout(() => { canCancel = true; }, 1500);
 
             countdownValue = 5;
-            let timer = setInterval(() => {
+            document.getElementById('countdown-box').innerText = countdownValue;
+            
+            timer = setInterval(() => {
                 countdownValue--;
                 document.getElementById('countdown-box').innerText = countdownValue;
                 if (countdownValue <= 0) {
@@ -102,26 +107,45 @@
         }
 
         function resetSystem() {
+            clearInterval(timer);
             isFallDetected = false;
             canCancel = false;
             document.body.className = "";
-            document.getElementById('status').innerText = "جاري الرصد... ✅";
+            document.getElementById('status').innerText = "تم الإلغاء.. النظام عاد للرصد ✅";
             document.getElementById('countdown-box').style.display = "none";
-            document.getElementById('countdown-box').innerText = "5";
         }
 
         function finalEmergency() {
             document.body.className = "emergency";
-            document.getElementById('status').innerText = "🚨 حالة طارئة: سقوط مؤكد!";
+            document.getElementById('status').innerText = "🚨 جاري إرسال نداء استغاثة...";
             document.getElementById('countdown-box').style.display = "none";
-            // تشغيل الصوت
+            
+            // صوت الإنذار
             const ctx = new AudioContext();
             const osc = ctx.createOscillator();
             osc.type = 'sawtooth';
             osc.connect(ctx.destination);
             osc.start();
+
+            // جلب الموقع وإرساله للتليجرام
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const mapUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+                    sendToTelegram(`🚨 *إشعار سقوط مؤكد!*\n\nالموقع الحالي:\n${mapUrl}`);
+                }, () => {
+                    sendToTelegram(`🚨 *إشعار سقوط مؤكد!*\n\n(تعذر جلب الموقع الدقيق)`);
+                });
+            }
+        }
+
+        function sendToTelegram(message) {
+            const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+            fetch(url).then(() => {
+                document.getElementById('status').innerText = "🚨 تم إرسال موقعك لجهات الطوارئ!";
+            }).catch(err => console.error("خطأ في الإرسال", err));
         }
     </script>
 </body>
 </html>
-
