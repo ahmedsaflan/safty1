@@ -3,30 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام السلامة - النافذة العائمة</title>
+    <title>SafeGuard - وضع النافذة العائمة</title>
     <style>
-        :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        canvas { border: 1px solid #ccc; display: none; } /* اللوحة المخفية التي تحول البيانات لفيديو */
-        video { width: 100%; border-radius: 10px; background: #000; display: none; }
-        .btn { padding: 15px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 12px; width: 100%; margin-top: 10px; font-weight: bold; color: white; }
-        .btn-pip { background: #007bff; }
+        :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; --warning: #ffc107; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
+        #status { font-size: 1.1rem; margin: 15px 0; font-weight: bold; color: #2c3e50; }
+        canvas { display: none; } /* لوحة رسم مخفية لتحويل البيانات لفيديو */
+        video { width: 100%; border-radius: 12px; background: #000; display: none; margin-top: 10px; }
+        .btn { padding: 18px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; margin-top: 15px; font-weight: bold; color: white; transition: 0.3s; }
         .btn-start { background: var(--accent); }
-        #status { margin: 15px 0; font-weight: bold; }
+        .btn-pip { background: #007bff; display: none; }
+        .btn-cancel { background: var(--danger); display: none; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>🛡️ وضع النافذة العائمة</h2>
-        <div id="status">1. اضغط "بدء الرصد"<br>2. اضغط "تفعيل النافذة المصغرة"</div>
-        
+        <div style="font-size: 3rem;">🛡️</div>
+        <h2>نظام الحماية المستمرة</h2>
+        <div id="status">اتبع الخطوات لتفعيل الرصد فوق التطبيقات</div>
+
         <canvas id="renderCanvas" width="300" height="200"></canvas>
         <video id="pipVideo" autoplay muted playsinline></video>
 
-        <button id="startBtn" class="btn btn-start" onclick="initSystem()">1. بدء الرصد</button>
-        <button id="pipBtn" class="btn btn-pip" onclick="togglePiP()" style="display:none;">2. تفعيل النافذة المصغرة</button>
+        <button id="startBtn" class="btn btn-start" onclick="initSystem()">1. بدء تشغيل الرصد</button>
+        <button id="pipBtn" class="btn btn-pip" onclick="togglePiP()">2. تفعيل النافذة العائمة (هام)</button>
+        <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">إلغاء الإنذار (أنا بخير ✅)</button>
     </div>
 
     <script>
@@ -37,30 +40,26 @@
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('pipVideo');
         
-        let liveAcc = 0, maxAcc = 0, statusText = "جاري الرصد...";
-        let isFallDetected = false;
+        let liveAcc = 0, maxAcc = 0, statusLabel = "جاري الرصد...";
+        let isFallDetected = false, countdown = 5, timer;
 
-        // دالة لتحديث الرسم على اللوحة (Canvas) لتحويلها لفيديو
-        function updateCanvas() {
+        // تحديث واجهة "الفيديو" المصغر
+        function drawFrame() {
             ctx.fillStyle = isFallDetected ? "#dc3545" : "#28a745";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             ctx.fillStyle = "white";
-            ctx.font = "bold 20px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(statusText, 150, 50);
-            
-            ctx.font = "40px Monospace";
-            ctx.fillText(liveAcc.toFixed(2), 150, 110);
-            
-            ctx.font = "15px Arial";
-            ctx.fillText("أقصى ارتطام: " + maxAcc.toFixed(2), 150, 160);
-            
-            requestAnimationFrame(updateCanvas);
+            ctx.font = "bold 22px Arial";
+            ctx.fillText(isFallDetected ? "⚠️ سقوط!!" : "✅ محمي", 150, 50);
+            ctx.font = "50px Monospace";
+            ctx.fillText(isFallDetected ? countdown : liveAcc.toFixed(1), 150, 120);
+            ctx.font = "14px Arial";
+            ctx.fillText("قوة الارتطام الحالية: " + maxAcc.toFixed(1), 150, 170);
+            requestAnimationFrame(drawFrame);
         }
 
         async function initSystem() {
-            // تشغيل الحساسات
+            navigator.geolocation.getCurrentPosition(()=>{}, ()=>{alert("يجب تفعيل GPS")});
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 const state = await DeviceMotionEvent.requestPermission();
                 if (state === 'granted') startMonitoring();
@@ -76,34 +75,49 @@
                 
                 if (!isFallDetected && liveAcc > 22) {
                     isFallDetected = true;
-                    statusText = "⚠️ سقوط!!";
-                    sendToTelegram(`🚨 تنبيه: تم رصد سقوط!`);
+                    triggerAlarm();
                 }
             });
 
-            // تحويل الـ Canvas إلى بث فيديو
             const stream = canvas.captureStream();
             video.srcObject = stream;
-            
             document.getElementById('startBtn').style.display = "none";
             document.getElementById('pipBtn').style.display = "block";
-            updateCanvas();
+            document.getElementById('status').innerText = "اضغط الزر الأزرق لتصغير النافذة";
+            drawFrame();
         }
 
         async function togglePiP() {
             try {
-                if (document.pictureInPictureElement) {
-                    await document.exitPictureInPicture();
-                } else {
-                    await video.requestPictureInPicture();
-                }
-            } catch (err) {
-                alert("متصفحك لا يدعم النافذة العائمة أو تحتاج للتفاعل مع الصفحة أولاً");
-            }
+                await video.requestPictureInPicture();
+                document.getElementById('status').innerText = "الرصد يعمل الآن فوق التطبيقات ✅";
+            } catch (err) { alert("تأكد من استخدام متصفح كروم وتفاعل مع الصفحة أولاً"); }
         }
 
-        function sendToTelegram(msg) {
-            fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
+        function triggerAlarm() {
+            document.getElementById('cancelBtn').style.display = "block";
+            countdown = 5;
+            timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    if (isFallDetected) sendEmergency();
+                }
+            }, 1000);
+        }
+
+        function resetSystem() {
+            clearInterval(timer);
+            isFallDetected = false;
+            document.getElementById('cancelBtn').style.display = "none";
+            document.getElementById('status').innerText = "تم الإلغاء.. الرصد مستمر";
+        }
+
+        function sendEmergency() {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const map = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("🚨 سقوط مؤكد!\nالموقع: " + map)}&disable_notification=false`);
+            });
         }
     </script>
 </body>
