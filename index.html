@@ -3,152 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeGuard PWA</title>
-    
-    <meta name="theme-color" content="#28a745">
-    <link rel="manifest" id="my-manifest">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/582/582761.png">
-
+    <title>نظام السلامة - النافذة العائمة</title>
     <style>
-        :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; --warning: #ffc107; --cancel: #6c757d; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; transition: 0.3s; touch-action: manipulation; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        #status { font-size: 1.1rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
-        .monitor-box { display: flex; justify-content: space-around; margin: 20px 0; gap: 10px; }
-        .data-point { flex: 1; background: #e7f3ff; padding: 15px; border-radius: 12px; }
-        .value { font-size: 1.5rem; font-weight: bold; color: #007bff; font-family: monospace; }
-        #countdown-box { display: none; font-size: 4.5rem; color: var(--danger); font-weight: bold; margin: 10px 0; }
-        .btn { padding: 18px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; transition: 0.2s; margin-top: 10px; font-weight: bold; }
-        .btn-start { background: var(--accent); color: white; }
-        .btn-cancel { background: var(--danger); color: white; display: none; border: 4px solid #fff; }
-        .waiting { background: var(--warning) !important; }
-        .emergency { background: var(--danger) !important; color: white !important; }
+        :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        canvas { border: 1px solid #ccc; display: none; } /* اللوحة المخفية التي تحول البيانات لفيديو */
+        video { width: 100%; border-radius: 10px; background: #000; display: none; }
+        .btn { padding: 15px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 12px; width: 100%; margin-top: 10px; font-weight: bold; color: white; }
+        .btn-pip { background: #007bff; }
+        .btn-start { background: var(--accent); }
+        #status { margin: 15px 0; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div style="font-size: 3rem;">🛡️</div>
-        <h2>SafeGuard PWA</h2>
-        <div id="status">جاهز للرصد.. اضغط للبدء</div>
+        <h2>🛡️ وضع النافذة العائمة</h2>
+        <div id="status">1. اضغط "بدء الرصد"<br>2. اضغط "تفعيل النافذة المصغرة"</div>
         
-        <div id="countdown-box">5</div>
+        <canvas id="renderCanvas" width="300" height="200"></canvas>
+        <video id="pipVideo" autoplay muted playsinline></video>
 
-        <div class="monitor-box">
-            <div class="data-point"><span style="font-size: 0.8rem;">التسارع</span><div id="live-val" class="value">0.00</div></div>
-            <div class="data-point" style="background: #fff4e6;"><span style="font-size: 0.8rem;">الارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
-        </div>
-
-        <button id="mainBtn" class="btn btn-start" onclick="initSystem()">تفعيل وضع الحماية</button>
-        <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">إلغاء (أنا بخير ✅)</button>
+        <button id="startBtn" class="btn btn-start" onclick="initSystem()">1. بدء الرصد</button>
+        <button id="pipBtn" class="btn btn-pip" onclick="togglePiP()" style="display:none;">2. تفعيل النافذة المصغرة</button>
     </div>
 
-    <audio id="silentTracker" loop preload="auto">
-        <source src="https://www.soundjay.com/button/beep-01a.mp3" type="audio/mpeg">
-    </audio>
-
     <script>
-        // بيانات تليجرام الخاصة بك
         const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
         const CHAT_ID = "1400827294";
 
-        // توليد ملف الـ Manifest برمجياً للـ PWA
-        const manifest = {
-            "name": "SafeGuard Fall Detection",
-            "short_name": "SafeGuard",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#f8f9fa",
-            "theme_color": "#28a745",
-            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/582/582761.png", "sizes": "512x512", "type": "image/png" }]
-        };
-        const stringManifest = JSON.stringify(manifest);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        document.getElementById('my-manifest').setAttribute('href', URL.createObjectURL(blob));
+        const canvas = document.getElementById('renderCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('pipVideo');
+        
+        let liveAcc = 0, maxAcc = 0, statusText = "جاري الرصد...";
+        let isFallDetected = false;
 
-        // تسجيل الـ Service Worker (أساسي للـ PWA)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('data:text/javascript;base64,' + btoa('self.addEventListener("fetch", (event) => { event.respondWith(fetch(event.request)); });'));
-            });
+        // دالة لتحديث الرسم على اللوحة (Canvas) لتحويلها لفيديو
+        function updateCanvas() {
+            ctx.fillStyle = isFallDetected ? "#dc3545" : "#28a745";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "white";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(statusText, 150, 50);
+            
+            ctx.font = "40px Monospace";
+            ctx.fillText(liveAcc.toFixed(2), 150, 110);
+            
+            ctx.font = "15px Arial";
+            ctx.fillText("أقصى ارتطام: " + maxAcc.toFixed(2), 150, 160);
+            
+            requestAnimationFrame(updateCanvas);
         }
 
-        let isFallDetected = false, canCancelByMove = false, maxImpact = 0, countdownValue = 5, timer, audioCtx, audioOsc, wakeLock = null;
-
-        async function requestWakeLock() {
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-        }
-
-        function initSystem() {
-            navigator.geolocation.getCurrentPosition(()=>{}, ()=>{alert("تفعيل الموقع ضروري!")});
-            document.getElementById('silentTracker').volume = 0.01;
-            document.getElementById('silentTracker').play();
-
+        async function initSystem() {
+            // تشغيل الحساسات
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') startMonitoring(); });
+                const state = await DeviceMotionEvent.requestPermission();
+                if (state === 'granted') startMonitoring();
             } else { startMonitoring(); }
         }
 
         function startMonitoring() {
-            requestWakeLock();
-            document.getElementById('mainBtn').style.backgroundColor = "#6c757d";
-            document.getElementById('mainBtn').innerText = "الحماية تعمل الآن...";
-            document.getElementById('mainBtn').disabled = true;
-            document.getElementById('status').innerText = "النظام يراقب سلامتك الآن.. ✅";
-            window.addEventListener('devicemotion', handleMotion);
+            window.addEventListener('devicemotion', (e) => {
+                let acc = e.accelerationIncludingGravity;
+                if (!acc.x) return;
+                liveAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+                if (liveAcc > maxAcc) maxAcc = liveAcc;
+                
+                if (!isFallDetected && liveAcc > 22) {
+                    isFallDetected = true;
+                    statusText = "⚠️ سقوط!!";
+                    sendToTelegram(`🚨 تنبيه: تم رصد سقوط!`);
+                }
+            });
+
+            // تحويل الـ Canvas إلى بث فيديو
+            const stream = canvas.captureStream();
+            video.srcObject = stream;
+            
+            document.getElementById('startBtn').style.display = "none";
+            document.getElementById('pipBtn').style.display = "block";
+            updateCanvas();
         }
 
-        function handleMotion(event) {
-            let acc = event.accelerationIncludingGravity;
-            if (!acc || acc.x === null) return;
-            let totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-            document.getElementById('live-val').innerText = totalAcc.toFixed(2);
-            if (totalAcc > maxImpact) { maxImpact = totalAcc; document.getElementById('max-val').innerText = maxImpact.toFixed(2); }
-            if (!isFallDetected && totalAcc > 22) { isFallDetected = true; triggerWaitingSequence(); }
-            if (isFallDetected && canCancelByMove) {
-                let move = event.acceleration;
-                if (move && (Math.abs(move.x) > 4 || Math.abs(move.y) > 4)) resetSystem();
+        async function togglePiP() {
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else {
+                    await video.requestPictureInPicture();
+                }
+            } catch (err) {
+                alert("متصفحك لا يدعم النافذة العائمة أو تحتاج للتفاعل مع الصفحة أولاً");
             }
         }
 
-        function triggerWaitingSequence() {
-            document.body.className = "waiting";
-            document.getElementById('status').innerText = "⚠️ تم رصد ارتطام شديد!";
-            document.getElementById('countdown-box').style.display = "block";
-            document.getElementById('cancelBtn').style.display = "block";
-            document.getElementById('mainBtn').style.display = "none";
-            canCancelByMove = false; setTimeout(() => { canCancelByMove = true; }, 1500);
-            countdownValue = 5;
-            timer = setInterval(() => {
-                countdownValue--;
-                document.getElementById('countdown-box').innerText = countdownValue;
-                if (countdownValue <= 0) { clearInterval(timer); if (isFallDetected) finalEmergency(); }
-            }, 1000);
-        }
-
-        function resetSystem() {
-            clearInterval(timer); if (audioOsc) audioOsc.stop();
-            isFallDetected = false; document.body.className = "";
-            document.getElementById('status').innerText = "تم الإلغاء.. النظام عاد للرصد ✅";
-            document.getElementById('countdown-box').style.display = "none";
-            document.getElementById('cancelBtn').style.display = "none";
-            document.getElementById('mainBtn').style.display = "block";
-        }
-
-        function finalEmergency() {
-            document.body.className = "emergency";
-            document.getElementById('status').innerText = "🚨 جاري طلب الاستغاثة...";
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            audioOsc = audioCtx.createOscillator(); audioOsc.type = 'sawtooth'; audioOsc.connect(audioCtx.destination); audioOsc.start();
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const mapUrl = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                sendToTelegram(`🔔 *تنبيه سقوط طارئ*\n📍 الموقع: ${mapUrl}`);
-            }, () => sendToTelegram(`🔔 *تنبيه سقوط طارئ*\n(الموقع غير متوفر)`));
-        }
-
-        function sendToTelegram(message) {
-            const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown&disable_notification=false`;
-            fetch(url).then(() => { document.getElementById('status').innerText = "🚨 تم إرسال موقعك!"; });
+        function sendToTelegram(msg) {
+            fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
         }
     </script>
 </body>
