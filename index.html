@@ -3,24 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام السلامة - أزرار واضحة</title>
+    <title>نظام السلامة - نسخة الصمود المطور</title>
     <style>
         :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; --warning: #ffc107; --cancel: #6c757d; }
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; transition: 0.3s; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        #status { font-size: 1.2rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
-        
+        #status { font-size: 1.1rem; margin: 15px 0; font-weight: bold; color: #2c3e50; min-height: 1.6em; }
         .monitor-box { display: flex; justify-content: space-around; margin: 20px 0; gap: 10px; }
         .data-point { flex: 1; background: #e7f3ff; padding: 15px; border-radius: 12px; }
         .value { font-size: 1.5rem; font-weight: bold; color: #007bff; font-family: monospace; }
-        
         #countdown-box { display: none; font-size: 4.5rem; color: var(--danger); font-weight: bold; margin: 10px 0; }
-        
-        /* تحسين الأزرار لتكون واضحة دائماً */
-        .btn { padding: 18px; font-size: 1.3rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; transition: 0.2s; margin-top: 15px; font-weight: bold; }
-        .btn-start { background: var(--accent); color: white; display: block; }
-        .btn-cancel { background: var(--danger); color: white; display: none; border: 4px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        
+        .btn { padding: 18px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; transition: 0.2s; margin-top: 10px; font-weight: bold; }
+        .btn-start { background: var(--accent); color: white; }
+        .btn-cancel { background: var(--danger); color: white; display: none; border: 4px solid #fff; }
         .waiting { background: var(--warning) !important; }
         .emergency { background: var(--danger) !important; color: white !important; }
     </style>
@@ -28,19 +23,22 @@
 <body>
 
     <div class="card">
-        <h2>🛡️ نظام السلامة الذكي</h2>
-        <div id="status">اضغط على الزر الأخضر للبدء</div>
+        <h2>🛡️ نظام السلامة (نسخة الصمود)</h2>
+        <div id="status">جاهز للرصد.. اضغط للبدء</div>
         <div id="countdown-box">5</div>
 
         <div class="monitor-box">
             <div class="data-point"><span style="font-size: 0.8rem;">التسارع</span><div id="live-val" class="value">0.00</div></div>
-            <div class="data-point" style="background: #fff4e6;"><span style="font-size: 0.8rem;">أقوى ارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
+            <div class="data-point" style="background: #fff4e6;"><span style="font-size: 0.8rem;">الارتطام</span><div id="max-val" class="value" style="color: #fd7e14;">0.00</div></div>
         </div>
 
-        <button id="mainBtn" class="btn btn-start" onclick="initSystem()">تشغيل الرصد الآن</button>
-        
+        <button id="mainBtn" class="btn btn-start" onclick="initSystem()">بدء الحماية (خلفية نشطة)</button>
         <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">إلغاء الإنذار (أنا بخير ✅)</button>
     </div>
+
+    <audio id="silentTracker" loop>
+        <source src="https://www.soundjay.com/button/beep-01a.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
         const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
@@ -51,21 +49,35 @@
         let maxImpact = 0;
         let countdownValue = 5;
         let timer;
-        let audioCtx;
-        let audioOsc;
+        let audioCtx, audioOsc, wakeLock = null;
 
-        const IMPACT_THRESHOLD = 22;
+        // تفعيل خاصية منع خمول المعالج (Wake Lock)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log("Wake Lock النشط ✅");
+                }
+            } catch (err) { console.log("Wake Lock غير مدعوم"); }
+        }
 
         function initSystem() {
             navigator.geolocation.getCurrentPosition(()=>{}, ()=>{alert("تفعيل الموقع ضروري!")});
+            
+            // تشغيل الصوت الصامت لإبقاء العمليات نشطة
+            const audio = document.getElementById('silentTracker');
+            audio.volume = 0.01; 
+            audio.play();
+
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') startMonitoring(); });
             } else { startMonitoring(); }
         }
 
         function startMonitoring() {
+            requestWakeLock();
             document.getElementById('mainBtn').style.backgroundColor = "#6c757d";
-            document.getElementById('mainBtn').innerText = "نظام الحماية يعمل...";
+            document.getElementById('mainBtn').innerText = "الحماية تعمل في الخلفية...";
             document.getElementById('mainBtn').disabled = true;
             document.getElementById('status').innerText = "النظام يراقب سلامتك الآن.. ✅";
             window.addEventListener('devicemotion', handleMotion);
@@ -82,25 +94,25 @@
                 document.getElementById('max-val').innerText = maxImpact.toFixed(2);
             }
 
-            if (!isFallDetected && totalAcc > IMPACT_THRESHOLD) {
+            if (!isFallDetected && totalAcc > IMPACT_THRESHOLD_VAL()) {
                 isFallDetected = true;
                 triggerWaitingSequence();
             }
 
             if (isFallDetected && canCancelByMove) {
                 let move = event.acceleration;
-                if (Math.abs(move.x) > 3 || Math.abs(move.y) > 3 || Math.abs(move.z) > 3) {
+                if (move && (Math.abs(move.x) > 3 || Math.abs(move.y) > 3 || Math.abs(move.z) > 3)) {
                     resetSystem();
                 }
             }
         }
 
+        function IMPACT_THRESHOLD_VAL() { return 22; }
+
         function triggerWaitingSequence() {
             document.body.className = "waiting";
             document.getElementById('status').innerText = "⚠️ تم رصد ارتطام! هل أنت بخير؟";
             document.getElementById('countdown-box').style.display = "block";
-            
-            // إظهار زر الإلغاء فوراً عند رصد السقوط
             document.getElementById('cancelBtn').style.display = "block";
             document.getElementById('mainBtn').style.display = "none";
             
@@ -123,25 +135,18 @@
         function resetSystem() {
             clearInterval(timer);
             if (audioOsc) { audioOsc.stop(); audioOsc = null; }
-            
             isFallDetected = false;
             canCancelByMove = false;
             document.body.className = "";
             document.getElementById('status').innerText = "تم الإلغاء. النظام يعمل مجدداً ✅";
             document.getElementById('countdown-box').style.display = "none";
-            
-            // إعادة الأزرار لحالتها الأصلية
             document.getElementById('cancelBtn').style.display = "none";
             document.getElementById('mainBtn').style.display = "block";
-            document.getElementById('mainBtn').disabled = false;
-            document.getElementById('mainBtn').style.backgroundColor = "#28a745";
-            document.getElementById('mainBtn').innerText = "تشغيل الرصد الآن";
         }
 
         function finalEmergency() {
             document.body.className = "emergency";
-            document.getElementById('status').innerText = "🚨 إرسال نداء استغاثة عاجل...";
-            document.getElementById('countdown-box').innerText = "🆘";
+            document.getElementById('status').innerText = "🚨 جاري إرسال موقعك للتليجرام...";
             
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             audioOsc = audioCtx.createOscillator();
@@ -161,7 +166,9 @@
 
         function sendToTelegram(message) {
             const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown&disable_notification=false`;
-            fetch(url).catch(err => console.error("Error sending message"));
+            fetch(url).then(() => {
+                document.getElementById('status').innerText = "🚨 تم إرسال نداء الاستغاثة!";
+            });
         }
     </script>
 </body>
