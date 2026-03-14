@@ -89,13 +89,13 @@
 
         function sendUrgentAlert(val) {
             const mapUrl = `https://www.google.com/maps?q=${lastLat},${lastLon}`;
-            const message = `🚨 *تنبيه سقوط ذكي*\n\nتم رصد ارتطام بقوة: ${val.toFixed(1)}\nالموقع الحالي:\n${mapUrl}`;
+            const message = `🚨 *تنبيه سقوط ذكي*\n\nتم رصد ارتطام بقوة: ${val.toFixed(1)}\nالموقع2 الحالي:\n${mapUrl}`;
             
             fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
             
             // تنبيه صوتي محلي إذا كانت الصفحة مفتوحة
             const synth = window.speechSynthesis;
-            synth.speak(new SpeechSynthesisUtterance("تم إرسال تنبيه سقوط للمراقب"));
+            synth.speak(new SpeechSynthesisUtterance("تم إرسال تنبيه سقوط للمراقب2"));
         }
 
         function handleError(err) { console.error("GPS Heartbeat Error: ", err); }
