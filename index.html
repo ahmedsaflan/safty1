@@ -3,133 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeGuard - النسخة الفولاذية</title>
+    <title>SafeGuard Hybrid</title>
     <style>
-        :root { --main-bg: #f8f9fa; --accent: #27ae60; --danger: #c0392b; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        .status-badge { background: #fff; border: 2px solid #ddd; padding: 15px; border-radius: 15px; font-weight: bold; margin: 20px 0; font-size: 1.1rem; }
-        .active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(39, 174, 96, 0.2); }
-        .btn { padding: 20px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 18px; width: 100%; margin-top: 15px; font-weight: bold; color: white; }
-        .btn-start { background: var(--accent); }
-        .btn-cancel { background: var(--danger); display: none; height: 120px; font-size: 1.6rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.96); } 100% { transform: scale(1); } }
-        #countdown { font-size: 5rem; color: var(--danger); font-weight: bold; display: none; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        .btn { padding: 20px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; font-weight: bold; color: white; background: #27ae60; }
+        #status { margin: 20px 0; font-weight: bold; color: #2c3e50; }
+        .bg-mode { font-size: 0.8rem; color: #666; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div style="font-size: 4rem;">🛡️</div>
-        <h2>الدرع الواقي (الحل النهائي)</h2>
-        <p style="font-size: 0.85rem; color: #666;">تعمل هذه النسخة بنظام "التحديث المستمر" لضمان بقاء الحساسات نشطة خلف اليوتيوب والواتساب.</p>
-        
-        <div class="status-badge" id="status">النظام بانتظار البدء</div>
-        <div id="countdown">5</div>
-
-        <button id="startBtn" class="btn btn-start" onclick="forceActiveSystem()">تفعيل الحماية المطلقة</button>
-        <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">إيقاف الإنذار (أنا بخير ✅)</button>
+        <h2>نظام الحماية الذكي</h2>
+        <div id="status">جاهز للرصد..</div>
+        <button id="startBtn" class="btn" onclick="startHybridSystem()">تفعيل الحماية</button>
+        <div class="bg-mode">يستخدم تقنية "تتبع الموقع" للبقاء نشطاً في الخلفية.</div>
     </div>
-
-    <audio id="stayAliveAudio" loop preload="auto">
-        <source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3">
-    </audio>
 
     <script>
         const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
         const CHAT_ID = "1400827294";
+        
+        let lastLat, lastLon, watchID;
 
-        let isFallDetected = false, countdown = 5, timer, audioCtx, sirenInterval;
+        function startHybridSystem() {
+            document.getElementById('startBtn').style.display = "none";
+            document.getElementById('status').innerText = "✅ الحماية نشطة.. يمكنك الخروج الآن";
 
-        async function forceActiveSystem() {
-            // 1. تشغيل الصوت الصامت فوراً
-            document.getElementById('stayAliveAudio').play();
-
-            // 2. تفعيل "وضع الحماية" في النظام عبر MediaSession
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: 'الحماية تعمل في الخلفية 🛡️',
-                    artist: 'SafeGuard Active Engine',
-                    artwork: [{ src: 'https://cdn-icons-png.flaticon.com/512/582/582761.png', sizes: '512x512', type: 'image/png' }]
-                });
+            // 1. تفعيل الحساسات (للعمل في الواجهة)
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', handleMotion);
             }
 
-            // 3. الخدعة الأهم: تحديث الموقع الجغرافي باستمرار (WatchPosition)
-            // هذا يخبر أندرويد أن التطبيق يحتاج للبقاء مستيقظاً لمتابعة حركة الشخص
-            navigator.geolocation.watchPosition(()=>{}, ()=>{}, {enableHighAccuracy: true});
-
-            // 4. طلب أذونات الحركة
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                const state = await DeviceMotionEvent.requestPermission();
-                if (state === 'granted') startMonitoring();
-            } else { startMonitoring(); }
+            // 2. تفعيل تتبع الموقع المستمر (لضمان بقاء المتصفح نشطاً في الخلفية)
+            if (navigator.geolocation) {
+                watchID = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        // تحديث الإحداثيات باستمرار يخبر النظام أننا "ملاحقة نشطة"
+                        lastLat = pos.coords.latitude;
+                        lastLon = pos.coords.longitude;
+                        console.log("تحديث الموقع في الخلفية...");
+                    },
+                    (err) => console.log(err),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }
         }
 
-        function startMonitoring() {
-            document.getElementById('startBtn').style.display = "none";
-            document.getElementById('status').innerText = "✅ النظام نشط ولن يتوقف";
-            document.getElementById('status').className = "status-badge active";
-
-            window.addEventListener('devicemotion', (e) => {
-                let acc = e.accelerationIncludingGravity;
-                if (!acc || acc.x === null) return;
-                let total = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-                
-                if (!isFallDetected && total > 22) {
-                    isFallDetected = true;
-                    triggerAlarm();
-                }
-            });
-        }
-
-        function triggerAlarm() {
-            document.getElementById('status').innerText = "🚨 تم رصد سقوط! هل أنت بخير؟";
-            document.getElementById('countdown').style.display = "block";
-            document.getElementById('cancelBtn').style.display = "block";
+        function handleMotion(event) {
+            let acc = event.accelerationIncludingGravity;
+            let total = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
             
-            // تشغيل صوت صفارة الإنذار المزعجة في جوال كبير السن
-            startSiren();
-
-            countdown = 5;
-            timer = setInterval(() => {
-                countdown--;
-                document.getElementById('countdown').innerText = countdown;
-                if (countdown <= 0) {
-                    clearInterval(timer);
-                    if (isFallDetected) sendEmergency();
-                }
-            }, 1000);
+            if (total > 25) { // رصد ارتطام
+                triggerEmergency();
+            }
         }
 
-        function startSiren() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            sirenInterval = setInterval(() => {
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.4);
-                gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-            }, 500);
-        }
-
-        function resetSystem() {
-            clearInterval(timer); if (sirenInterval) clearInterval(sirenInterval);
-            isFallDetected = false;
-            document.getElementById('status').innerText = "✅ النظام عاد للرصد في الخلفية";
-            document.getElementById('countdown').style.display = "none";
-            document.getElementById('cancelBtn').style.display = "none";
-        }
-
-        function sendEmergency() {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const map = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                const msg = `🚨 *نداء استغاثة عاجل*\n\nتم رصد سقوط كبير السن.\nالموقع المباشر:\n${map}`;
-                fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown&disable_notification=false`);
-                document.getElementById('status').innerText = "🚨 تم إرسال موقعك للمراقب!";
-            });
+        function triggerEmergency() {
+            const mapUrl = `https://www.google.com/maps?q=${lastLat},${lastLon}`;
+            fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("🚨 تنبيه طارئ: تم رصد سقوط!\nالموقع: " + mapUrl)}`);
+            alert("تم إرسال تنبيه سقوط!");
         }
     </script>
 </body>
