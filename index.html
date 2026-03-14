@@ -2,103 +2,27 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeGuard Ultra-Smart</title>
-    <style>
-        :root { --main-bg: #f4f7f6; --accent: #2ecc71; --danger: #e74c3c; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        .monitor-ring { width: 150px; height: 150px; border-radius: 50%; border: 8px solid #eee; border-top: 8px solid var(--accent); margin: 20px auto; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; animation: spin 2s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .btn { padding: 20px; font-size: 1.3rem; cursor: pointer; border: none; border-radius: 18px; width: 100%; margin-top: 15px; font-weight: bold; color: white; background: var(--accent); }
-        #status { font-weight: bold; color: #34495e; margin: 15px 0; }
-    </style>
-</head>
-<body>
-
-    <div class="card">
-        <div id="ring" class="monitor-ring" style="animation-play-state: paused; border-color: #ddd;">OFF</div>
-        <h2>نظام النبض الذكي</h2>
-        <div id="status">النظام بانتظار إشارة البدء..</div>
-        
-        <button id="startBtn" class="btn" onclick="igniteEngine()">تفعيل الرصد الفولاذي</button>
-        
-        <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 20px;">
-            ملاحظة: يستخدم هذا الوضع "نبضات الـ GPS" المتكررة لإجبار المتصفح على البقاء نشطاً خلف التطبيقات الأخرى.
-        </div>
-    </div>
-
+    <title>SafeGuard Background Pro</title>
     <script>
-        const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
-        const CHAT_ID = "1400827294";
+        // تسجيل الـ Service Worker لضمان العمل في الخلفية
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => {
+                console.log("تم تسجيل محرك الخلفية بنجاح");
+            });
+        }
 
-        let isMonitoring = false;
-        let lastLat, lastLon;
-
-        async function igniteEngine() {
-            // 1. طلب إذن الموقع والبدء في "التتبع اللحظي"
-            if (navigator.geolocation) {
-                // سر النجاح: watchPosition مع إعدادات تجعل النظام في حالة استنفار
-                navigator.geolocation.watchPosition(updateLocation, handleError, {
-                    enableHighAccuracy: true,
-                    timeout: 1000, // نبضة كل ثانية واحدة فقط
-                    maximumAge: 0
-                });
-            }
-
-            // 2. تفعيل حساس الحركة
-            if (window.DeviceMotionEvent) {
-                const startMotion = () => {
-                    window.addEventListener('devicemotion', handleMotion);
-                    document.getElementById('ring').style.animationPlayState = "running";
-                    document.getElementById('ring').innerText = "LIVE";
-                    document.getElementById('ring').style.borderColor = "#2ecc71";
-                    document.getElementById('status').innerText = "✅ الرصد يعمل بالخلفية عبر نبضات الموقع";
-                    document.getElementById('startBtn').style.display = "none";
-                };
-
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                    const permission = await DeviceMotionEvent.requestPermission();
-                    if (permission === 'granted') startMotion();
-                } else {
-                    startMotion();
-                }
+        async function startSystem() {
+            // طلب إذن الموقع بشكل دائم
+            const permission = await navigator.permissions.query({ name: 'geolocation' });
+            if (permission.state === 'granted' || permission.state === 'prompt') {
+                navigator.geolocation.watchPosition(() => {}, () => {}, { enableHighAccuracy: true });
+                alert("بدأ الرصد.. النظام سيحاول البقاء نشطاً عبر محرك الخلفية");
             }
         }
-
-        function updateLocation(pos) {
-            // كل ثانية، المتصفح "يستيقظ" لتنفيذ هذا الكود
-            lastLat = pos.coords.latitude;
-            lastLon = pos.coords.longitude;
-            
-            // تحديث وهمي للتأكد من أن النظام يرى "نشاطاً برمجياً" مستمراً
-            console.log("Heartbeat Ping: " + lastLat);
-        }
-
-        function handleMotion(event) {
-            let acc = event.accelerationIncludingGravity;
-            if (!acc || acc.x === null) return;
-
-            let totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-            
-            // رصد ارتطام عنيف
-            if (totalAcc > 28) { 
-                sendUrgentAlert(totalAcc);
-            }
-        }
-
-        function sendUrgentAlert(val) {
-            const mapUrl = `https://www.google.com/maps?q=${lastLat},${lastLon}`;
-            const message = `🚨 *تنبيه سقوط ذكي*\n\nتم رصد ارتطام بقوة: ${val.toFixed(1)}\nالموقع2 الحالي:\n${mapUrl}`;
-            
-            fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
-            
-            // تنبيه صوتي محلي إذا كانت الصفحة مفتوحة
-            const synth = window.speechSynthesis;
-            synth.speak(new SpeechSynthesisUtterance("تم إرسال تنبيه سقوط للمراقب2"));
-        }
-
-        function handleError(err) { console.error("GPS Heartbeat Error: ", err); }
     </script>
+</head>
+<body style="text-align:center; font-family:sans-serif; padding:50px;">
+    <h2>نظام الحماية الفولاذي (نسخة SW)</h2>
+    <button onclick="startSystem()" style="padding:20px; font-size:1.5rem; background:#27ae60; color:white; border:none; border-radius:15px;">تفعيل الرصد الدائم</button>
 </body>
 </html>
