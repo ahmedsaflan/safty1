@@ -3,64 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeGuard - الاستمرارية المطلقة</title>
+    <title>SafeGuard - النسخة الفولاذية</title>
     <style>
-        :root { --main-bg: #f0f2f5; --accent: #2ecc71; --danger: #e74c3c; }
+        :root { --main-bg: #f8f9fa; --accent: #27ae60; --danger: #c0392b; }
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
         .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        .status-badge { background: #fff; border: 2px solid #ddd; padding: 15px; border-radius: 15px; font-weight: bold; margin: 20px 0; font-size: 1.2rem; transition: 0.3s; }
-        .active-status { border-color: var(--accent); color: var(--accent); background: #f4fff7; }
-        .btn { padding: 20px; font-size: 1.3rem; cursor: pointer; border: none; border-radius: 18px; width: 100%; margin-top: 15px; font-weight: bold; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .status-badge { background: #fff; border: 2px solid #ddd; padding: 15px; border-radius: 15px; font-weight: bold; margin: 20px 0; font-size: 1.1rem; }
+        .active { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(39, 174, 96, 0.2); }
+        .btn { padding: 20px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 18px; width: 100%; margin-top: 15px; font-weight: bold; color: white; }
         .btn-start { background: var(--accent); }
-        .btn-cancel { background: var(--danger); display: none; height: 120px; font-size: 1.7rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.97); } 100% { transform: scale(1); } }
-        #countdown { font-size: 6rem; color: var(--danger); font-weight: bold; display: none; margin: 10px 0; }
-        /* إخفاء الفيديو تماماً عن عين المستخدم */
-        #dummyVideo { position: absolute; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
+        .btn-cancel { background: var(--danger); display: none; height: 120px; font-size: 1.6rem; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.96); } 100% { transform: scale(1); } }
+        #countdown { font-size: 5rem; color: var(--danger); font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <div style="font-size: 4rem;">🛡️</div>
-        <h2>نظام الحماية الفولاذي</h2>
-        <p style="color: #666; font-size: 0.9rem;">هذه النسخة تستخدم "البث الوهمي" لضمان العمل أثناء تصفح اليوتيوب وواتساب.</p>
+        <h2>الدرع الواقي (الحل النهائي)</h2>
+        <p style="font-size: 0.85rem; color: #666;">تعمل هذه النسخة بنظام "التحديث المستمر" لضمان بقاء الحساسات نشطة خلف اليوتيوب والواتساب.</p>
         
-        <div class="status-badge" id="status">النظام متوقف</div>
+        <div class="status-badge" id="status">النظام بانتظار البدء</div>
         <div id="countdown">5</div>
 
-        <button id="startBtn" class="btn btn-start" onclick="activateEngine()">تشغيل الحماية الدائمة</button>
-        <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">أنا بخير (إيقاف الإنذار) ✋</button>
+        <button id="startBtn" class="btn btn-start" onclick="forceActiveSystem()">تفعيل الحماية المطلقة</button>
+        <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">إيقاف الإنذار (أنا بخير ✅)</button>
     </div>
 
-    <video id="dummyVideo" loop playsinline muted>
-        <source src="https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/bolt-detection.mp4" type="video/mp4">
-    </video>
+    <audio id="stayAliveAudio" loop preload="auto">
+        <source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3">
+    </audio>
 
     <script>
         const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
         const CHAT_ID = "1400827294";
 
-        let isFallDetected = false, countdown = 5, timer, audioCtx, sirenInterval, wakeLock = null;
+        let isFallDetected = false, countdown = 5, timer, audioCtx, sirenInterval;
 
-        async function activateEngine() {
-            // 1. تشغيل الفيديو المخفي (هذا هو المحرك الذي يمنع النوم)
-            const video = document.getElementById('dummyVideo');
-            video.play();
+        async function forceActiveSystem() {
+            // 1. تشغيل الصوت الصامت فوراً
+            document.getElementById('stayAliveAudio').play();
 
-            // 2. تفعيل MediaSession لإعطاء الأولوية في النظام
+            // 2. تفعيل "وضع الحماية" في النظام عبر MediaSession
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: 'نظام الحماية نشط في الخلفية',
-                    artist: 'SafeGuard Global',
+                    title: 'الحماية تعمل في الخلفية 🛡️',
+                    artist: 'SafeGuard Active Engine',
                     artwork: [{ src: 'https://cdn-icons-png.flaticon.com/512/582/582761.png', sizes: '512x512', type: 'image/png' }]
                 });
             }
 
-            // 3. منع خمول الشاشة والمعالج (Wake Lock)
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+            // 3. الخدعة الأهم: تحديث الموقع الجغرافي باستمرار (WatchPosition)
+            // هذا يخبر أندرويد أن التطبيق يحتاج للبقاء مستيقظاً لمتابعة حركة الشخص
+            navigator.geolocation.watchPosition(()=>{}, ()=>{}, {enableHighAccuracy: true});
 
-            // 4. طلب أذونات الحساسات والموقع
+            // 4. طلب أذونات الحركة
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 const state = await DeviceMotionEvent.requestPermission();
                 if (state === 'granted') startMonitoring();
@@ -69,8 +67,8 @@
 
         function startMonitoring() {
             document.getElementById('startBtn').style.display = "none";
-            document.getElementById('status').innerText = "✅ الرصد يعمل الآن في الخلفية";
-            document.getElementById('status').className = "status-badge active-status";
+            document.getElementById('status').innerText = "✅ النظام نشط ولن يتوقف";
+            document.getElementById('status').className = "status-badge active";
 
             window.addEventListener('devicemotion', (e) => {
                 let acc = e.accelerationIncludingGravity;
@@ -82,15 +80,14 @@
                     triggerAlarm();
                 }
             });
-            navigator.geolocation.getCurrentPosition(()=>{}, ()=>{});
         }
 
         function triggerAlarm() {
-            document.getElementById('status').innerText = "⚠️ خطر: تم رصد سقوط!";
+            document.getElementById('status').innerText = "🚨 تم رصد سقوط! هل أنت بخير؟";
             document.getElementById('countdown').style.display = "block";
             document.getElementById('cancelBtn').style.display = "block";
             
-            // تشغيل صوت التنبيه المزعج
+            // تشغيل صوت صفارة الإنذار المزعجة في جوال كبير السن
             startSiren();
 
             countdown = 5;
@@ -110,21 +107,18 @@
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.4);
-                gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
+                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
             }, 500);
         }
 
         function resetSystem() {
-            clearInterval(timer);
-            if (sirenInterval) clearInterval(sirenInterval);
+            clearInterval(timer); if (sirenInterval) clearInterval(sirenInterval);
             isFallDetected = false;
-            document.getElementById('status').innerText = "✅ الحماية تعمل في الخلفية الآن";
+            document.getElementById('status').innerText = "✅ النظام عاد للرصد في الخلفية";
             document.getElementById('countdown').style.display = "none";
             document.getElementById('cancelBtn').style.display = "none";
         }
@@ -132,9 +126,9 @@
         function sendEmergency() {
             navigator.geolocation.getCurrentPosition((pos) => {
                 const map = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                const msg = `🚨 *نداء استغاثة عاجل*\n\nتم رصد سقوط مؤكد.\nالموقع:\n${map}`;
+                const msg = `🚨 *نداء استغاثة عاجل*\n\nتم رصد سقوط كبير السن.\nالموقع المباشر:\n${map}`;
                 fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown&disable_notification=false`);
-                document.getElementById('status').innerText = "🚨 تم إرسال الموقع للمراقب!";
+                document.getElementById('status').innerText = "🚨 تم إرسال موقعك للمراقب!";
             });
         }
     </script>
