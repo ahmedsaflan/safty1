@@ -3,33 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeGuard - تنبيه صوتي كامل</title>
+    <title>SafeGuard - نظام الحماية النشط</title>
     <style>
         :root { --main-bg: #f8f9fa; --accent: #28a745; --danger: #dc3545; }
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--main-bg); margin: 0; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-        .status-badge { background: #eef2f7; padding: 10px; border-radius: 10px; font-weight: bold; margin: 15px 0; font-size: 1.2rem; }
-        .btn { padding: 18px; font-size: 1.2rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; margin-top: 15px; font-weight: bold; color: white; }
-        .btn-start { background: var(--accent); }
-        .btn-cancel { background: var(--danger); display: none; height: 100px; font-size: 1.5rem; animation: pulse 1s infinite; }
+        .status-badge { background: #eef2f7; padding: 15px; border-radius: 12px; font-weight: bold; margin: 15px 0; font-size: 1.1rem; border: 2px solid #ddd; }
+        .btn { padding: 20px; font-size: 1.3rem; cursor: pointer; border: none; border-radius: 15px; width: 100%; margin-top: 15px; font-weight: bold; color: white; transition: 0.3s; }
+        .btn-start { background: var(--accent); box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3); }
+        .btn-cancel { background: var(--danger); display: none; height: 120px; font-size: 1.6rem; animation: pulse 1s infinite; border: 5px solid white; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
         #countdown-box { font-size: 5rem; color: var(--danger); font-weight: bold; display: none; margin: 10px 0; }
+        .info-text { font-size: 0.85rem; color: #666; margin-top: 15px; line-height: 1.4; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div style="font-size: 3.5rem;">🚨</div>
+        <div style="font-size: 3.5rem;">🛡️</div>
         <h2>نظام حماية كبار السن</h2>
-        <div class="status-badge" id="status">اضغط لتفعيل الحماية</div>
+        <p class="info-text">هذا النظام يعمل في الخلفية عبر "بث صامت" لمنع توقف الحساسات.</p>
+        
+        <div class="status-badge" id="status">جاهز.. اضغط للبدء</div>
 
         <div id="countdown-box">5</div>
 
-        <button id="startBtn" class="btn btn-start" onclick="activateSystem()">تفعيل الحماية الآن</button>
+        <button id="startBtn" class="btn btn-start" onclick="activateSystem()">تفعيل الحماية المستمرة</button>
         <button id="cancelBtn" class="btn btn-cancel" onclick="resetSystem()">أنا بخير (إيقاف الإنذار) ✋</button>
     </div>
 
-    <audio id="bgAudio" loop><source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3"></audio>
+    <audio id="bgAudio" loop preload="auto">
+        <source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-of-silence.mp3" type="audio/mp3">
+    </audio>
 
     <script>
         const TG_TOKEN = "8633912015:AAGxck5kIDmVYJhcgx_SLb94LWomH9uxwpU";
@@ -37,35 +42,59 @@
 
         let isFallDetected = false, countdown = 5, timer, audioCtx, sirenInterval;
 
-        function activateSystem() {
-            document.getElementById('bgAudio').play();
+        async function activateSystem() {
+            // 1. تشغيل الصوت الصامت فوراً
+            const audio = document.getElementById('bgAudio');
+            audio.play().catch(e => console.log("Audio play failed, needs interaction"));
+
+            // 2. تفعيل "لوحة الوسائط" لتظهر في إشعارات الهاتف (تمنع إغلاق المتصفح)
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: '🛡️ نظام السلامة نشط',
+                    artist: 'جاري مراقبة السقوط في الخلفية',
+                    artwork: [{ src: 'https://cdn-icons-png.flaticon.com/512/582/582761.png', sizes: '512x512', type: 'image/png' }]
+                });
+            }
+
+            // 3. طلب الأذونات وبدء الرصد
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') startMonitoring(); });
-            } else { startMonitoring(); }
+                const state = await DeviceMotionEvent.requestPermission();
+                if (state === 'granted') startMonitoring();
+            } else { 
+                startMonitoring(); 
+            }
         }
 
         function startMonitoring() {
             document.getElementById('startBtn').style.display = "none";
-            document.getElementById('status').innerText = "✅ النظام يعمل ويراقب الحركة";
+            document.getElementById('status').innerText = "✅ الحماية تعمل في الخلفية الآن";
+            document.getElementById('status').style.borderColor = "#28a745";
+
             window.addEventListener('devicemotion', (e) => {
                 let acc = e.accelerationIncludingGravity;
+                if (!acc || acc.x === null) return;
                 let total = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+                
                 if (!isFallDetected && total > 22) {
                     isFallDetected = true;
                     triggerAlarm();
                 }
             });
+            
+            // طلب إذن الموقع مسبقاً لضمان السرعة عند الطوارئ
+            navigator.geolocation.getCurrentPosition(()=>{}, ()=>{});
         }
 
         function triggerAlarm() {
-            document.getElementById('status').innerText = "⚠️ تم رصد سقوط!";
+            document.getElementById('status').innerText = "⚠️ تم رصد سقوط! هل أنت بخير؟";
             document.getElementById('countdown-box').style.display = "block";
             document.getElementById('cancelBtn').style.display = "block";
             
-            // تشغيل صوت تنبيه (نغمة متقطعة) في جوال كبير السن
+            // تشغيل صوت صفارة الإنذار في جوال المستخدم
             startSiren();
 
             countdown = 5;
+            document.getElementById('countdown-box').innerText = countdown;
             timer = setInterval(() => {
                 countdown--;
                 document.getElementById('countdown-box').innerText = countdown;
@@ -76,26 +105,25 @@
             }, 1000);
         }
 
-        // دالة لعمل صوت صفارة إنذار قوية في الجوال
         function startSiren() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
             sirenInterval = setInterval(() => {
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // تردد مرتفع
-                osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
-                gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
                 osc.connect(gain);
+                gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
-            }, 600);
+                osc.stop(audioCtx.currentTime + 0.4);
+            }, 500);
         }
 
         function resetSystem() {
             clearInterval(timer);
-            clearInterval(sirenInterval); // إيقاف الصوت فوراً
+            if (sirenInterval) clearInterval(sirenInterval);
             isFallDetected = false;
             document.getElementById('status').innerText = "✅ تم الإلغاء.. الحماية مستمرة";
             document.getElementById('countdown-box').style.display = "none";
@@ -103,12 +131,13 @@
         }
 
         function sendEmergency() {
-            // إرسال الموقع للمراقب عبر تليجرام
             navigator.geolocation.getCurrentPosition((pos) => {
                 const map = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                const msg = `🚨 *نداء استغاثة عاجل*\n\nتم رصد سقوط كبير السن في هذا الموقع:\n${map}`;
+                const msg = `🚨 *نداء استغاثة عاجل*\n\nتم رصد سقوط مؤكد.\nالموقع الحالي:\n${map}`;
                 fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}&parse_mode=Markdown&disable_notification=false`);
                 document.getElementById('status').innerText = "🚨 تم إرسال موقعك للمراقب!";
+            }, () => {
+                fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("🚨 سقوط مؤكد! (الموقع غير متاح)")}`);
             });
         }
     </script>
